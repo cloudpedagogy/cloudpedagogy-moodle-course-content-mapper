@@ -115,7 +115,7 @@ different combinations of resources and activities can be processed by
 the same mapper.
 
 The Word output supports the next stage. Because it is editable,
-academics and learning designers can rearrange headings, activities,
+academics and learning designers can rearrange headings, course items,
 explanatory text and linked resources to explore alternative structures.
 The links to the bundled source files remain available as reference
 points during that process.
@@ -323,6 +323,61 @@ a course with no relevant video/file-type metadata will not gain a
 video-specific option merely because another course contains videos.
 Likewise, missing modification dates or duplicate information are not
 inferred.
+
+### What the review filters mean
+
+The filters are **dynamic and data-driven**. They are generated from the
+metadata actually present in the processed course rather than from a
+fixed list of expected Moodle content. A filter is shown only when the
+source data contains useful values for it. For example, if a course has
+no relevant video or file-type metadata, no video-specific option is
+created; if item-level modification dates are unavailable, the
+modification-year filter is omitted.
+
+  -----------------------------------------------------------------------
+  Filter                              What it filters
+  ----------------------------------- -----------------------------------
+  **Category**                        Broad course-item family, such as
+                                      resource/content or learning
+                                      activity.
+
+  **Item type**                       Moodle item type, such as File,
+                                      URL, Forum, Quiz, Assignment, LTI
+                                      or another type present in the
+                                      course.
+
+  **Provider**                        Identified provider or hosting
+                                      source, such as Moodle or Panopto,
+                                      when supplied by the audit data.
+
+  **Link location**                   Whether a mapped link is
+                                      bundled/local or points to an
+                                      external resource.
+
+  **File type**                       File extension of mapped resources,
+                                      such as PDF, DOCX, XLSX or MP4,
+                                      when present.
+
+  **Modified year**                   Item-level modification year, but
+                                      only when supported by the source
+                                      audit data.
+
+  **Link QA**                         Mapping/link status, such as
+                                      linked, unresolved, ambiguous or no
+                                      separate resource.
+
+  **Visibility**                      Moodle visibility state when
+                                      available, for example visible or
+                                      hidden.
+
+  **Duplicate candidates**            Restricts the view to items
+                                      explicitly identified as possible
+                                      duplicates by Course Auditor data.
+  -----------------------------------------------------------------------
+
+Filters can be combined with each other and with text search to narrow
+the course map during review. They affect only the displayed static map;
+they do not change Moodle or the underlying audit data.
 
 Where useful metadata exists, each course item can expose a collapsible
 **Review metadata** panel. This allows the HTML output to act as an

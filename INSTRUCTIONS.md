@@ -173,6 +173,65 @@ The filters are intentionally adaptive:
 This means different Moodle courses can expose different filter sets
 while using the same mapper script.
 
+#### What each filter means
+
+The filter set is **dynamic rather than fixed**. Each processed course
+can therefore expose a different set of controls. A filter appears only
+when the source audit contains useful values for it; unavailable
+metadata is omitted rather than guessed. For example, a course without
+relevant video/file-type metadata will not gain a video-specific option,
+and a course without reliable item-level modification dates will not
+show a modification-year filter.
+
+  -----------------------------------------------------------------------
+  Filter                              Purpose
+  ----------------------------------- -----------------------------------
+  **Category**                        Filters the broad course-item
+                                      family, such as resource/content or
+                                      learning activity.
+
+  **Item type**                       Filters Moodle item types actually
+                                      present in the course, such as
+                                      File, URL, Forum, Quiz, Assignment
+                                      or LTI.
+
+  **Provider**                        Filters by an identified provider
+                                      or hosting source, such as Moodle
+                                      or Panopto, where this is supplied
+                                      by the audit data.
+
+  **Link location**                   Filters mapped links by
+                                      bundled/local versus external
+                                      location.
+
+  **File type**                       Filters mapped resources by file
+                                      extension, such as PDF, DOCX, XLSX
+                                      or MP4, when available.
+
+  **Modified year**                   Filters by item-level modification
+                                      year only when the audit data
+                                      supports that value.
+
+  **Link QA**                         Filters by mapping/link status,
+                                      such as linked, unresolved,
+                                      ambiguous or no separate resource.
+
+  **Visibility**                      Filters by Moodle visibility state
+                                      when available.
+
+  **Duplicate candidates**            Shows only items explicitly
+                                      identified as possible duplicates
+                                      by Course Auditor data.
+  -----------------------------------------------------------------------
+
+Filters can be combined. For example, a reviewer could narrow the map to
+external items from a particular provider, or to a particular file type
+and modification year. Text search can be used alongside the filters.
+
+These controls operate only on the generated HTML representation. They
+do not modify Moodle, the backup, the Course Auditor output or the
+bundled resources.
+
 Where metadata is available, use **Review metadata** beneath a course
 item to inspect the additional information used by the review layer.
 
