@@ -2,15 +2,15 @@
 
 Create an interactive, browsable and editable representation of an existing Moodle course from the processed outputs of [Moodle Course Auditor](https://github.com/cloudpedagogy/cloudpedagogy-moodle-course-auditor).
 
-Moodle Course Content Mapper preserves the current Moodle section and activity structure and connects activities to extracted course resources. Its **primary output is an interactive HTML course map** for exploring the existing course, with navigation, filtering and clickable links to mapped resources.
+Moodle Course Content Mapper preserves the current Moodle section and **course-item structure** and connects course items to extracted course resources. **Course item** is used as an umbrella term for elements represented in Moodle; where possible, the mapper distinguishes **resources/content** (such as files, URLs, pages and books) from **learning activities** (such as forums, quizzes and assignments). Its **primary output is an interactive HTML course map** for exploring the existing course, with navigation, filtering and clickable links to mapped resources.
 
-It also generates an **editable Microsoft Word version** of the map for human-led course review and redesign. In Word, headings, activities, explanatory text and linked resource references can be moved, renamed, annotated and reorganised to sketch a proposed new structure while retaining links back to the source resources.
+It also generates an **editable Microsoft Word version** of the map for human-led course review and redesign. In Word, headings, course items, explanatory text and linked resource references can be moved, renamed, annotated and reorganised to sketch a proposed new structure while retaining links back to the source resources.
 
 The mapper is intentionally conservative: it represents what is present in the source course and avoids automatically deciding how the course should be redesigned.
 
 ## Example course map
 
-![Interactive Moodle course content map showing the existing section, activity and resource structure](img/screenshot.png)
+![Interactive Moodle course content map showing the existing section, course-item and resource structure](img/screenshot.png)
 
 *Example of the primary HTML output generated from a Moodle course. The map represents the current Moodle structure and provides interactive navigation, filtering and clickable links to mapped course resources.*
 
@@ -20,7 +20,7 @@ Moodle Course Content Mapper is a **downstream companion tool** to [CloudPedagog
 
 Moodle Course Auditor analyses Moodle backup (`.mbz`) files and produces structured audit data plus extracted course resources. The analysis is **non-destructive**: it works on a static backup file and does not connect to, alter or write back to the live Moodle course.
 
-Moodle backups are normally associated with backup and restore workflows, but they also contain a rich source of information about a course, including its sections, activities, resources, files, links, visibility, structure and other metadata. Moodle Course Auditor exposes that information in reusable CSV/JSON reports and, when file extraction is enabled, recovers the associated course resources.
+Moodle backups are normally associated with backup and restore workflows, but they also contain a rich source of information about a course, including its sections, course items, resources, files, links, visibility, structure and other metadata. Moodle Course Auditor exposes that information in reusable CSV/JSON reports and, when file extraction is enabled, recovers the associated course resources.
 
 The Content Mapper then uses those outputs to create a human-readable representation of the course:
 
@@ -70,7 +70,7 @@ Human-reviewed proposed course structure
 ```
 
 The HTML output provides a clear view of the **current Moodle course**:
-sections, activities and associated resources can be explored without
+sections, course items and associated resources can be explored without
 changing Moodle itself. This makes it useful for understanding what is
 currently present before redesign decisions are made.
 
@@ -84,11 +84,27 @@ The tool therefore **supports course redesign; it does not automatically
 redesign the course**. Pedagogical interpretation and decisions remain
 with the course team.
 
+A useful way to think about the two main outputs is:
+
+- **HTML = understand and review the existing Moodle course.**
+- **Word = prototype and discuss a possible redesigned structure.**
+
+## Terminology
+
+The mapper uses **course item** as the user-facing umbrella term for elements represented in the Moodle course. Moodle distinguishes between resources/content and learning activities, so the mapper presents that distinction where the source activity type allows it:
+
+- **Resources/content** — for example files, URLs, pages, books, folders and labels.
+- **Activities** — for example forums, quizzes, assignments, lessons, H5P, SCORM and LTI items.
+
+The underlying Moodle Course Auditor fields such as `activity_type` and `activity_name` remain unchanged for compatibility. This is therefore a user-facing terminology improvement rather than a change to the audit data model.
+
 ## Features
 
--   Preserves Moodle section order and activity order.
+-   Preserves Moodle section order and course-item order.
+-   Uses **course item** as the user-facing umbrella term while retaining the Course Auditor data model.
+-   Distinguishes resources/content from learning activities where the Moodle item type allows this.
 -   Uses existing Moodle labels as subheadings.
--   Maps resources and URLs to Moodle activities.
+-   Maps resources and URLs to their corresponding Moodle course items.
 -   Creates clickable links to extracted PDFs, Word files, spreadsheets
     and other resources.
 -   Creates an editable Microsoft Word working copy for course review
@@ -193,7 +209,7 @@ output/
 
 The main output of the mapper. It provides an interactive, browsable
 representation of the **current Moodle course structure**, including its
-sections, activities and mapped resources.
+sections, course items and mapped resources.
 
 The HTML interface includes course navigation and resource filtering, and
 mapped local resources and external URLs are clickable. When `--bundle`
@@ -287,6 +303,8 @@ workflow.
 ## Status
 
 Early development / experimental.
+
+Current mapper release documented here: **v0.4.x**.
 
 The current focus is reliable structural mapping, resource linking and
 editable course-review outputs. Future development may introduce

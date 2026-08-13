@@ -17,7 +17,7 @@ Produces browsable HTML and editable Word content maps plus CSV/report outputs.
 
 Design goals
 ------------
-* Preserve Moodle section and activity order.
+* Preserve Moodle section and course-item order.
 * Make as few interpretive decisions as possible.
 * Use module_id / section metadata from the audit as the primary mapping key.
 * Link Moodle-hosted resources to the actual extracted files.
@@ -59,7 +59,7 @@ except ImportError:
     Document = None
 
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 
 def clean(value) -> str:
@@ -459,7 +459,7 @@ def add_docx_hyperlink(paragraph, text: str, target: str):
 
 
 def write_docx(path: Path, title: str, sections, rows) -> None:
-    """Create an editable Word working copy of the audited Moodle structure."""
+    """Create an editable Word working copy of the audited Moodle course-item structure."""
     if Document is None:
         raise RuntimeError(
             "Word output requires python-docx. Install it with: "
@@ -489,7 +489,7 @@ def write_docx(path: Path, title: str, sections, rows) -> None:
     note.add_run(
         "Purpose: an editable representation of the existing Moodle course structure. "
         "The mapper has not pedagogically reclassified or reorganised the content. "
-        "Move or rename headings and resource entries in this document as part of course redesign; "
+        "Move or rename headings, course items and resource entries in this document as part of course redesign; "
         "the underlying extracted resources are not changed."
     )
 
@@ -499,6 +499,15 @@ def write_docx(path: Path, title: str, sections, rows) -> None:
         "local resource hyperlinks point to the extracted files used by the HTML map. "
         "Keep the surrounding course-map folders in their relative positions, or generate a portable "
         "bundle with --bundle if the package needs to be moved elsewhere."
+    )
+
+    terminology_note = doc.add_paragraph()
+    terminology_note.add_run("Terminology: ").bold = True
+    terminology_note.add_run(
+        "'Course item' is used as the umbrella term for elements represented in the Moodle course. "
+        "Where possible, the mapper also indicates whether an item is resource/content "
+        "(for example a file, URL, page or book) or a learning activity "
+        "(for example a forum, quiz or assignment)."
     )
 
     doc.add_heading("Contents / working outline", level=1)
@@ -528,6 +537,9 @@ def write_docx(path: Path, title: str, sections, rows) -> None:
             p = doc.add_paragraph()
             badge = p.add_run(f"[{type_label(atype)}] ")
             badge.bold = True
+            family = course_item_family(atype)
+            family_run = p.add_run(f"{family}: ")
+            family_run.italic = True
             name_run = p.add_run(aname)
             name_run.bold = True
 
@@ -553,13 +565,13 @@ def write_docx(path: Path, title: str, sections, rows) -> None:
                         m.italic = True
             else:
                 rp = doc.add_paragraph(style="List Bullet 2")
-                rp.add_run("No separate file or URL was identified for this Moodle activity.").italic = True
+                rp.add_run("No separate file or URL was identified for this Moodle course item.").italic = True
 
     doc.add_page_break()
     doc.add_heading("Mapping notes", level=1)
     notes = [
         "Section order is taken from sections.csv.",
-        "Activity order is taken from each Moodle section's activity sequence.",
+        "Course-item order is taken from each Moodle section's activity sequence.",
         "Existing Moodle labels are retained as subheadings.",
         "Local resources are linked only when the mapper resolves a sufficiently reliable file match.",
         "External URLs are retained from the audit data.",
@@ -592,7 +604,7 @@ def write_unresolved_csv(path: Path, rows: Sequence[dict]) -> None:
 def write_report(path: Path, title: str, sections, rows, unresolved, bundle: bool) -> None:
     local = sum(r.link_type == "local-file" for r in rows)
     external = sum(r.link_type == "external" for r in rows)
-    total_activities = sum(len(s["activities"]) for s in sections)
+    total_course_items = sum(len(s["activities"]) for s in sections)
     exact = sum(r.mapping_status == "exact-filename" for r in rows)
     ci = sum(r.mapping_status == "case-insensitive-filename" for r in rows)
     normalized = sum(r.mapping_status == "normalized-filename" for r in rows)
@@ -603,7 +615,7 @@ def write_report(path: Path, title: str, sections, rows, unresolved, bundle: boo
         f"# Course Content Mapping Report - {title}", "",
         "## Summary", "",
         f"- Sections mapped: {len(sections)}",
-        f"- Moodle activities represented: {total_activities}",
+        f"- Moodle course items represented: {total_course_items}",
         f"- Mapping rows: {len(rows)}",
         f"- Local extracted-resource links: {local}",
         f"- External links: {external}",
@@ -617,7 +629,7 @@ def write_report(path: Path, title: str, sections, rows, unresolved, bundle: boo
         f"- Ambiguous matches left unresolved: {ambiguous}", "",
         "## Mapping approach", "",
         "- Section order comes from `sections.csv`.",
-        "- Activity order comes from each section's `activity_sequence`.",
+        "- Course-item order comes from each section's `activity_sequence`.",
         "- Resources and URLs are associated by `module_id` from `content_placement_inventory.csv`.",
         "- Extracted files are resolved in this order: exact filename, case-insensitive exact filename, conservative normalized filename, then very-high-confidence same-extension fuzzy matching.",
         "- Ambiguous normalized or fuzzy matches are deliberately left unresolved.",
@@ -634,8 +646,58 @@ def write_report(path: Path, title: str, sections, rows, unresolved, bundle: boo
 
 
 def type_label(activity_type: str) -> str:
-    labels = {"resource":"File", "url":"Link", "label":"Heading", "forum":"Forum", "lti":"LTI", "coursework":"Assessment", "folder":"Folder", "page":"Page", "book":"Book", "quiz":"Quiz"}
-    return labels.get(activity_type.lower(), activity_type.title() or "Activity")
+    """
+    User-facing Moodle course-item type.
+
+    Internally the auditor uses activity_type/activity_name for all course
+    modules. The mapper presents these as "course items" because Moodle
+    courses contain both learning activities and resources.
+    """
+    labels = {
+        "resource": "File",
+        "url": "Link",
+        "label": "Heading",
+        "forum": "Forum",
+        "lti": "LTI",
+        "coursework": "Assessment",
+        "assign": "Assignment",
+        "assignment": "Assignment",
+        "folder": "Folder",
+        "page": "Page",
+        "book": "Book",
+        "quiz": "Quiz",
+        "lesson": "Lesson",
+        "scorm": "SCORM",
+        "h5pactivity": "H5P",
+        "choice": "Choice",
+        "feedback": "Feedback",
+        "glossary": "Glossary",
+        "wiki": "Wiki",
+        "workshop": "Workshop",
+        "chat": "Chat",
+        "database": "Database",
+    }
+    return labels.get(activity_type.lower(), activity_type.title() or "Course item")
+
+
+def course_item_family(activity_type: str) -> str:
+    """Broad user-facing classification without altering the audit data."""
+    atype = clean(activity_type).lower()
+
+    resource_types = {
+        "resource", "url", "folder", "page", "book", "label",
+    }
+    activity_types = {
+        "forum", "quiz", "assign", "assignment", "coursework", "lesson",
+        "scorm", "h5pactivity", "choice", "feedback", "glossary", "wiki",
+        "workshop", "chat", "database", "lti",
+    }
+
+    if atype in resource_types:
+        return "Resource/content"
+    if atype in activity_types:
+        return "Activity"
+    return "Course item"
 
 
 def render_html(title: str, sections, rows) -> str:
@@ -662,9 +724,16 @@ def render_html(title: str, sections, rows) -> str:
                     items.append(f'<li><a class="resource-link" href="{html.escape(item["href"], quote=True)}"{target}>{display}</a>{meta_html}</li>')
                 else:
                     items.append(f'<li><span>{display}</span><span class="unresolved">Resource not resolved</span>{meta_html}</li>')
-            items_block = f'<ul class="resource-list">{"".join(items)}</ul>' if items else '<div class="activity-note">No separate file or URL was identified for this Moodle activity.</div>'
+            items_block = f'<ul class="resource-list">{"".join(items)}</ul>' if items else '<div class="activity-note">No separate file or URL was identified for this Moodle course item.</div>'
             search_text = " ".join([aname, atype] + [i["display_name"] for i in activity["items"]] + [i["provider"] for i in activity["items"]]).lower()
-            bits.append(f'<article class="activity" data-search="{html.escape(search_text, quote=True)}"><div class="activity-title-row"><span class="type-badge">{html.escape(type_label(atype))}</span><h4>{html.escape(aname)}</h4></div>{items_block}</article>')
+            family = course_item_family(atype)
+            bits.append(
+                f'<article class="activity" data-search="{html.escape(search_text, quote=True)}">'
+                f'<div class="activity-title-row">'
+                f'<span class="type-badge">{html.escape(type_label(atype))}</span>'
+                f'<div class="item-heading"><span class="family-label">{html.escape(family)}</span>'
+                f'<h4>{html.escape(aname)}</h4></div></div>{items_block}</article>'
+            )
         if subgroup_open:
             bits.append("</div>")
         summary = section["summary"]
@@ -672,25 +741,25 @@ def render_html(title: str, sections, rows) -> str:
         if summary:
             excerpt = summary if len(summary) <= 700 else summary[:697].rstrip() + "..."
             summary_block = f'<details class="section-summary"><summary>Current Moodle section description</summary><p>{html.escape(excerpt)}</p></details>'
-        body.append(f'<section class="course-section" id="{html.escape(sid)}"><div class="section-heading"><div class="section-number">{html.escape(str(section["section_number"]))}</div><div><h2>{html.escape(section["section_name"])}</h2><div class="section-count">{len(section["activities"])} Moodle activities</div></div></div>{summary_block}<div class="activity-list">{"".join(bits)}</div></section>')
+        body.append(f'<section class="course-section" id="{html.escape(sid)}"><div class="section-heading"><div class="section-number">{html.escape(str(section["section_number"]))}</div><div><h2>{html.escape(section["section_name"])}</h2><div class="section-count">{len(section["activities"])} Moodle course items</div></div></div>{summary_block}<div class="activity-list">{"".join(bits)}</div></section>')
 
-    total_activities = sum(len(s["activities"]) for s in sections)
+    total_course_items = sum(len(s["activities"]) for s in sections)
     linked = sum(bool(r.href) for r in rows)
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)} - Course Content Map</title>
 <style>
-:root{{--bg:#f6f7fb;--panel:#fff;--text:#172033;--muted:#667085;--border:#d9dee8;--accent:#3157d5;--accent-soft:#eef3ff;--warning:#9a3412;--warning-bg:#fff7ed}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;line-height:1.5}}header{{background:var(--panel);border-bottom:1px solid var(--border);padding:26px 28px 20px}}header h1{{margin:0 0 6px;font-size:1.8rem}}header p{{margin:0;color:var(--muted)}}.layout{{max-width:1320px;margin:0 auto;padding:22px;display:grid;grid-template-columns:280px minmax(0,1fr);gap:22px}}.sidebar{{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}}.sidebar h2{{margin:0 0 10px;font-size:1rem}}.sidebar ol{{padding-left:1.35rem;margin:10px 0 0}}.sidebar li{{margin:.45rem 0}}.sidebar a,.resource-link{{color:var(--accent);text-decoration:none}}.resource-link{{font-weight:600}}.resource-link:hover{{text-decoration:underline}}.search{{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font:inherit;margin:8px 0 10px}}.metrics{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px}}.metric{{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:13px}}.metric strong{{display:block;font-size:1.35rem}}.metric span{{color:var(--muted);font-size:.84rem}}.course-section{{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:18px;margin-bottom:18px}}.section-heading{{display:flex;gap:12px;align-items:center}}.section-number{{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:700;flex:0 0 auto}}.course-section h2{{margin:0;font-size:1.25rem}}.section-count{{color:var(--muted);font-size:.86rem;margin-top:2px}}.section-summary{{margin:14px 0;color:var(--muted)}}.section-summary summary{{cursor:pointer;color:var(--accent);font-weight:600}}.subgroup{{border-left:3px solid var(--border);padding-left:14px;margin:18px 0}}.subgroup h3{{margin:0 0 10px;font-size:1rem}}.activity{{border-top:1px solid var(--border);padding:13px 0}}.activity:first-child{{border-top:0}}.activity-title-row{{display:flex;gap:9px;align-items:flex-start}}.activity h4{{margin:1px 0 5px;font-size:.98rem;font-weight:600}}.type-badge{{display:inline-block;background:#eef2f7;border-radius:999px;padding:2px 7px;font-size:.75rem;font-weight:700;white-space:nowrap}}.resource-list{{margin:4px 0 0 78px;padding-left:1.15rem}}.resource-list li{{margin:5px 0}}.item-meta{{display:block;color:var(--muted);font-size:.78rem}}.activity-note{{margin-left:78px;color:var(--muted);font-size:.85rem}}.unresolved{{display:inline-block;margin-left:8px;color:var(--warning);background:var(--warning-bg);border-radius:6px;padding:1px 6px;font-size:.76rem}}.hidden-by-search{{display:none!important}}.footer-note{{color:var(--muted);font-size:.85rem;margin:18px 0}}@media(max-width:850px){{.layout{{grid-template-columns:1fr;padding:12px}}.sidebar{{position:static;max-height:none}}.metrics{{grid-template-columns:1fr}}.resource-list,.activity-note{{margin-left:0}}}}
-</style></head><body><header><h1>{html.escape(title)}</h1><p>Course Content Map - generated from Moodle audit and extracted resources</p></header><div class="layout"><aside class="sidebar"><h2>Contents</h2><label for="map-search">Filter resources</label><input class="search" id="map-search" type="search" placeholder="Search activity, file or provider"><ol>{''.join(toc)}</ol></aside><main><div class="metrics"><div class="metric"><strong>{len(sections)}</strong><span>sections</span></div><div class="metric"><strong>{total_activities}</strong><span>activities shown</span></div><div class="metric"><strong>{linked}</strong><span>clickable resource/link rows</span></div></div>{''.join(body)}<p class="footer-note">This map preserves the audited Moodle structure. Existing Moodle labels are shown as subheadings. It does not infer a new pedagogic structure.</p></main></div>
+:root{{--bg:#f6f7fb;--panel:#fff;--text:#172033;--muted:#667085;--border:#d9dee8;--accent:#3157d5;--accent-soft:#eef3ff;--warning:#9a3412;--warning-bg:#fff7ed}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;line-height:1.5}}header{{background:var(--panel);border-bottom:1px solid var(--border);padding:26px 28px 20px}}header h1{{margin:0 0 6px;font-size:1.8rem}}header p{{margin:0;color:var(--muted)}}.layout{{max-width:1320px;margin:0 auto;padding:22px;display:grid;grid-template-columns:280px minmax(0,1fr);gap:22px}}.sidebar{{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}}.sidebar h2{{margin:0 0 10px;font-size:1rem}}.sidebar ol{{padding-left:1.35rem;margin:10px 0 0}}.sidebar li{{margin:.45rem 0}}.sidebar a,.resource-link{{color:var(--accent);text-decoration:none}}.resource-link{{font-weight:600}}.resource-link:hover{{text-decoration:underline}}.search{{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font:inherit;margin:8px 0 10px}}.metrics{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px}}.metric{{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:13px}}.metric strong{{display:block;font-size:1.35rem}}.metric span{{color:var(--muted);font-size:.84rem}}.course-section{{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:18px;margin-bottom:18px}}.section-heading{{display:flex;gap:12px;align-items:center}}.section-number{{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:700;flex:0 0 auto}}.course-section h2{{margin:0;font-size:1.25rem}}.section-count{{color:var(--muted);font-size:.86rem;margin-top:2px}}.section-summary{{margin:14px 0;color:var(--muted)}}.section-summary summary{{cursor:pointer;color:var(--accent);font-weight:600}}.subgroup{{border-left:3px solid var(--border);padding-left:14px;margin:18px 0}}.subgroup h3{{margin:0 0 10px;font-size:1rem}}.activity{{border-top:1px solid var(--border);padding:13px 0}}.activity:first-child{{border-top:0}}.activity-title-row{{display:flex;gap:9px;align-items:flex-start}}.activity h4{{margin:1px 0 5px;font-size:.98rem;font-weight:600}}.item-heading{{min-width:0}}.family-label{{display:block;color:var(--muted);font-size:.72rem;font-weight:600;margin-bottom:1px}}.type-badge{{display:inline-block;background:#eef2f7;border-radius:999px;padding:2px 7px;font-size:.75rem;font-weight:700;white-space:nowrap}}.resource-list{{margin:4px 0 0 78px;padding-left:1.15rem}}.resource-list li{{margin:5px 0}}.item-meta{{display:block;color:var(--muted);font-size:.78rem}}.activity-note{{margin-left:78px;color:var(--muted);font-size:.85rem}}.unresolved{{display:inline-block;margin-left:8px;color:var(--warning);background:var(--warning-bg);border-radius:6px;padding:1px 6px;font-size:.76rem}}.hidden-by-search{{display:none!important}}.footer-note{{color:var(--muted);font-size:.85rem;margin:18px 0}}@media(max-width:850px){{.layout{{grid-template-columns:1fr;padding:12px}}.sidebar{{position:static;max-height:none}}.metrics{{grid-template-columns:1fr}}.resource-list,.activity-note{{margin-left:0}}}}
+</style></head><body><header><h1>{html.escape(title)}</h1><p>Current Moodle Course Structure - generated from Moodle audit and extracted resources</p></header><div class="layout"><aside class="sidebar"><h2>Contents</h2><label for="map-search">Filter resources</label><input class="search" id="map-search" type="search" placeholder="Search course item, file or provider"><ol>{''.join(toc)}</ol></aside><main><div class="metrics"><div class="metric"><strong>{len(sections)}</strong><span>sections</span></div><div class="metric"><strong>{total_course_items}</strong><span>course items shown</span></div><div class="metric"><strong>{linked}</strong><span>clickable resource/link rows</span></div></div>{''.join(body)}<p class="footer-note">This map represents the audited current Moodle structure. "Course item" is used as an umbrella term for Moodle resources/content and learning activities. Existing Moodle labels are shown as subheadings. The mapper does not infer a new pedagogic structure.</p></main></div>
 <script>(()=>{{const input=document.getElementById('map-search');const sections=[...document.querySelectorAll('.course-section')];const activities=[...document.querySelectorAll('.activity')];const update=()=>{{const q=input.value.trim().toLowerCase();activities.forEach(a=>a.classList.toggle('hidden-by-search',!!q&&!(a.dataset.search||'').includes(q)));sections.forEach(s=>{{if(!q){{s.classList.remove('hidden-by-search');return}}const visible=s.querySelectorAll('.activity:not(.hidden-by-search)').length;const heading=(s.querySelector('h2')?.textContent||'').toLowerCase().includes(q);s.classList.toggle('hidden-by-search',!visible&&!heading)}})}};input.addEventListener('input',update)}})();</script></body></html>'''
 
 
 def parse_args(argv=None):
-    p = argparse.ArgumentParser(description="Create a clickable course-content map from Moodle Course Auditor outputs.")
+    p = argparse.ArgumentParser(description="Create clickable HTML and editable Word maps of Moodle course items from Moodle Course Auditor outputs.")
     p.add_argument("course_dir", type=Path, help="Course input directory containing audit/ and extracted_files/.")
     p.add_argument("-o", "--output-dir", type=Path, default=None, help="Output directory. Default: output/<input-course-folder-name>")
     p.add_argument("--bundle", action="store_true", help="Copy linked extracted resources into output/resources for a portable map.")
-    p.add_argument("--include-hidden", action="store_true", help="Include hidden Moodle activities/sections.")
+    p.add_argument("--include-hidden", action="store_true", help="Include hidden Moodle course items and sections.")
     p.add_argument("--title", default="", help="Override detected course title.")
     p.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     return p.parse_args(argv)
@@ -714,7 +783,7 @@ def main(argv=None) -> int:
     print(f"Input:  {course_dir}")
     print(f"Output: {output_dir}")
     print(f"Sections read:   {len(sections)}")
-    print(f"Activities read: {len(activities)}")
+    print(f"Course items read (activities.csv): {len(activities)}")
     print(f"Placements read: {len(placements)}")
     resource_index = ResourceIndex(extracted_dir)
     section_models, map_rows, unresolved = map_course(sections, activities, placements, resource_index, output_dir, args.bundle, args.include_hidden)
@@ -729,6 +798,7 @@ def main(argv=None) -> int:
     write_report(output_dir/"mapping_report.md", title, section_models, map_rows, unresolved, args.bundle)
     print("\nDone.")
     print(f"  Sections mapped:      {len(section_models)}")
+    print('  Course items mapped:  ' + str(sum(len(s["activities"]) for s in section_models)))
     print(f"  Mapping rows:         {len(map_rows)}")
     print(f"  Local resource links: {sum(r.link_type == 'local-file' for r in map_rows)}")
     print(f"  External links:       {sum(r.link_type == 'external' for r in map_rows)}")

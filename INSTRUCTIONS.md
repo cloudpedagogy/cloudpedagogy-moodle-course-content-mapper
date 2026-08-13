@@ -1,9 +1,22 @@
 # Moodle Course Content Mapper --- Instructions
 
+Applies to **v0.4.x** of the mapper.
+
 This guide describes the operational workflow for creating a course
 content map.
 
 For project purpose, features and technical overview, see `README.md`.
+
+### Terminology
+
+The mapper uses **course item** as an umbrella term for elements represented
+in the Moodle course. Where possible, the generated outputs distinguish
+**resources/content** (for example files, URLs, pages and books) from
+**learning activities** (for example forums, quizzes and assignments).
+
+The source Moodle Course Auditor data still uses internal fields such as
+`activity_type` and `activity_name`; these are retained for compatibility.
+
 
 ## 1. Generate the prerequisite course data
 
@@ -89,7 +102,7 @@ or shared as a package.
 ## 6. Check the terminal summary
 
 A successful run reports the course title, numbers of
-sections/activities/placements, mapping rows, local resource links,
+sections/course items/placements, mapping rows, local resource links,
 external links, unresolved issues, HTML map and Word working copy.
 
 Pay particular attention to the unresolved issue count.
@@ -122,14 +135,18 @@ open output/literature-review/content_map.docx
 
 ## 8. Use the HTML and Word outputs differently
 
-Use `index.html` to browse and inspect the mapped source course.
+Use `index.html` to browse, search and inspect the mapped **current Moodle course structure**.
 
 Use `content_map.docx` as an editable working document. Academics and
-learning designers can move headings and content references, add notes,
+learning designers can move headings, course items and linked content references, add notes,
 propose new groupings and develop a revised course structure.
 
 The Word document is a working representation; editing it does not
 change the Moodle backup, audit data or extracted source resources.
+
+When `--bundle` is used, keep `content_map.docx` together with the generated
+`resources/` folder if you want its local resource hyperlinks to continue
+working after the output is moved or shared.
 
 ## 9. Review unresolved items
 
@@ -149,7 +166,7 @@ reliable link automatically.
 
 ## 10. Useful command options
 
-Include hidden Moodle content:
+Include hidden Moodle course items and sections:
 
 ``` bash
 python3 content_mapper.py input/literature-review --include-hidden
